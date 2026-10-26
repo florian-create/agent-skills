@@ -45,7 +45,7 @@ Do **not** use this skill to author a brand-new flow from a description — that
 If the Kestra MCP tools are available (`search`, `task_schema`, `search_docs`, `get_doc`, served by `https://api.kestra.io/v1/mcp`), use them. They return one class at a time and work where there is no shell (ChatGPT):
 
 1. For each need that has no obvious task type (filter records, move a file, call an AI model...), call `search` first. A dedicated task usually exists (e.g. `io.kestra.plugin.transform.Filter` for filtering Ion records); do not improvise with SQL functions or scripts before checking.
-2. Call `task_schema` on **every** task, trigger and task runner type you plan to use, and use only the properties it returns.
+2. Call `task_schema` on **every** task, trigger and task runner type you plan to use, and use only the properties listed in its `propertiesSchema`. The examples it returns can lag behind the current version: when an example uses a property that `propertiesSchema` does not list (or nests differently), follow `propertiesSchema`.
 3. Before using a Pebble filter or function you are not sure of, check its signature with `search_docs` / `get_doc` (e.g. `replace` takes a map: `replace({'a': 'b'})`).
 
 Without the MCP tools, fall back to the schema endpoint. It is about 28 MB, so never read it whole: extract only the definitions you need.
