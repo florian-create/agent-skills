@@ -2,7 +2,7 @@
 name: migrate-airflow-kestra
 description: Migrate an Airflow DAG to a production-ready Kestra flow. Extracts Python task logic into namespace files, maps DAG dependencies to Kestra tasks, and preserves parallel execution structure.
 argument-hint: "<path-to-airflow-dag.py> [output-dir]"
-compatibility: Requires curl and network access to https://api.kestra.io/v1/plugins/schemas/flow. No Kestra instance required for generation.
+compatibility: Uses the Kestra MCP server (https://api.kestra.io/v1/mcp) when available, otherwise curl and jq with network access to https://api.kestra.io/v1/plugins/schemas/flow. No Kestra instance required for generation.
 ---
 
 # Migrate Airflow DAG to Kestra
@@ -40,28 +40,20 @@ Read the DAG file in full. Extract:
 
 ### Step 2 — Fetch and validate the Kestra schema
 
+If the Kestra MCP tools are available (`search`, `task_schema`, `search_docs`, `get_doc`, served by `https://api.kestra.io/v1/mcp`), use them. They return one class at a time and work where there is no shell (ChatGPT):
+
+1. For each need that has no obvious task type (filter records, move a file, call an AI model...), call `search` first. A dedicated task usually exists (e.g. `io.kestra.plugin.transform.Filter` for filtering Ion records); do not improvise with SQL functions or scripts before checking.
+2. Call `task_schema` on **every** task, trigger and task runner type you plan to use, and use only the properties it returns.
+3. Before using a Pebble filter or function you are not sure of, check its signature with `search_docs` / `get_doc` (e.g. `replace` takes a map: `replace({'a': 'b'})`).
+
+Without the MCP tools, fall back to the schema endpoint. It is about 28 MB, so never read it whole: extract only the definitions you need.
+
 ```bash
 curl -s https://api.kestra.io/v1/plugins/schemas/flow -o /tmp/kestra_schema.json
+jq '.definitions["io.kestra.plugin.core.log.Log"]' /tmp/kestra_schema.json
 ```
 
-Extract the definitions needed for this flow:
-
-```bash
-python3 -c "
-needed = [
-    'io.kestra.plugin.scripts.python.Commands',
-    'io.kestra.plugin.core.flow.Parallel',
-    'io.kestra.plugin.core.flow.WorkingDirectory',
-    'io.kestra.plugin.core.trigger.Schedule',
-]
-content = open('/tmp/kestra_schema.json').read()
-for t in needed:
-    idx = content.find(f'\"{ t }\"')
-    if idx >= 0:
-        print(f'=== {t} ===')
-        print(content[idx:idx+3000])
-"
-```
+Typical definitions for a DAG migration: `io.kestra.plugin.scripts.python.Commands`, `io.kestra.plugin.core.flow.Parallel`, `io.kestra.plugin.core.flow.WorkingDirectory`, `io.kestra.plugin.core.trigger.Schedule`.
 
 Do not generate any YAML until schema definitions have been read and validated.
 
