@@ -69,7 +69,7 @@ Apply all generation rules below, then output raw YAML only.
 - Trigger outputs are accessed via `{{ trigger.outputName }}`; only use variables defined in the trigger's declared outputs.
 
 **Looping**
-- Use `ForEach` for repeated actions over a collection.
+- Use `io.kestra.plugin.core.flow.Loop` for repeated actions over a collection (`ForEach` and `ForEachItem` were removed in Kestra 2.0).
 - Use `LoopUntil` for condition-based looping.
 
 **Flow outputs**
